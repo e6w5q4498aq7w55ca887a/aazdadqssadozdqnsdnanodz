@@ -75454,7 +75454,7 @@ pcall(function()
 	gameName = productInfo.Name or "Unknown"
 end)
 
-local MENU_TITLE = "Aira v1.3 | " .. gameName " | by @95k1"
+local MENU_TITLE = "Aira v1.3 | dev by @95k1 | " .. gameName
 
 if LRM_UserNote then
 	MENU_TITLE = string.format("(v%s) Lycoris | %s", VERSION, gameName)
@@ -80683,6 +80683,6 @@ end
 
 -- Return Hooking module.
 return Hooking
-  
+	
 end)
 return __bundle_require("__root")
