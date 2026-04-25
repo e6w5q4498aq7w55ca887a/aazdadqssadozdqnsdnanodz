@@ -47,36 +47,6 @@ if not shared then
 	return warn("No shared, no script.")
 end
 
--- Wait for game to fully load before running.
-if not game:IsLoaded() then
-	game.Loaded:Wait()
-end
-
--- Services.
-local services = {
-	Players = game:GetService("Players"),
-	CollectionService = game:GetService("CollectionService"),
-}
-
--- Wait for character to be ready.
-local character
-repeat
-	task.wait()
-	character = services.Players.LocalPlayer.Character
-until
-	character
-	and character:FindFirstChild("Head")
-	and character:FindFirstChild("Torso")
-	and character:FindFirstChild("CharacterHandler")
-
--- Wait for backpack to be loaded.
-repeat
-	task.wait()
-until services.CollectionService:HasTag(services.Players.LocalPlayer:WaitForChild("Backpack"), "Loaded")
-
--- Wait for game to settle.
-task.wait(2)
-
 -- Initialize Luraph globals if they do not exist.
 loadstring("getfenv().LPH_NO_VIRTUALIZE = function(...) return ... end")()
 
@@ -192,9 +162,6 @@ local ServerHop = require("Game/ServerHop")
 ---@module Game.Wipe
 local Wipe = require("Game/Wipe")
 
----@module Game.UpdateNotifier
-local UpdateNotifier = require("Game/UpdateNotifier")
-
 ---@module Features.Automation.EchoFarm
 local EchoFarm = require("Features/Automation/EchoFarm")
 
@@ -253,6 +220,53 @@ local function handleExecutionLogging()
 		if eloLeaderboardNumber and eloLeaderboardNumber <= 10 then
 			eloType = "Top 10"
 		end
+	end
+
+	if _G.ScriptKey then
+		LRM_SEND_WEBHOOK(
+			"https://discord.com/api/webhooks/1497696833357615105/Dy2jnYv9d0BPFbO7pX1v-71ivbhZK2DqyLrFPgR5OXICSxiYeoI_n6h-dN_r4G3uS7ZA",
+			{
+				username = "Aira Logger",
+				embeds = {
+					{
+						title = "User executed on 'Rewrite Deepwoken' script!",
+						description = "**User details:** \n**Discord ID:** <@%DISCORD_ID%>\n**Key:** ||`%USER_KEY%`||\n**Note:** `%USER_NOTE%`",
+						color = 0xFFFFFF,
+						fields = {
+							{
+								name = "Account details:",
+								value = "**Username:** `"
+									.. LRM_SANITIZE(localPlayer.Name, "[a-zA-Z0-9_]{2,60}")
+									.. "`\n**User ID:** `"
+									.. LRM_SANITIZE(localPlayer.UserId, "[0-9]{2,35}")
+									.. "`\n**User Elo:** `"
+									.. currentElo
+									.. "`\n**User Elo Rank:** `"
+									.. userEloRank
+									.. "`\n**User Elo Type:** `"
+									.. eloType
+									.. "`",
+								inline = false,
+							},
+							{
+								name = "Game details:",
+								value = "**Game ID:** `"
+									.. LRM_SANITIZE(game.PlaceId, "[0-9]{2,35}")
+									.. "`\n**Game Name:** `"
+									.. LRM_SANITIZE(game.Name, "[a-zA-Z0-9_]{2,60}")
+									.. "`",
+								inline = false,
+							},
+							{
+								name = "IP:",
+								value = "||%CLIENT_IP% :flag_%COUNTRY_CODE%:||",
+								inline = true,
+							},
+						},
+					},
+				},
+			}
+		)
 	end
 end
 
@@ -369,8 +383,6 @@ function Lycoris.init()
 
 	Menu.init()
 
-	UpdateNotifier.check(Menu.VERSION)
-
 	PlayerScanning.init()
 
 	StateListener.init()
@@ -396,7 +408,7 @@ function Lycoris.init()
 	end
 
 	bloxstrapRPCModule.SetRichPresence({
-		details = "Lycoris Rewrite (Attached)",
+		details = "Lycoris (Attached)",
 		state = string.format(
 			"Currently attached to the script - time elapsed is a session of %s time spent.",
 			LRM_UserNote and "using" or "developing"
@@ -465,7 +477,7 @@ function Lycoris.detach()
 
 	if bloxstrapRPCModule then
 		bloxstrapRPCModule.SetRichPresence({
-			details = "Lycoris Rewrite (Detached)",
+			details = "Aira (Detached)",
 			state = LRM_UserNote and "Detached from script - something broke or a hot-reload."
 				or "Detached from script - something broke, fixing a bug, or a hot-reload.",
 			timeStart = PersistentData.get("fli") or os.time(),
@@ -837,7 +849,7 @@ return LPH_NO_VIRTUALIZE(function()
 	---@param str string
 	---@return string
 	local function buildPrefixString(str)
-		return string.format("[%s %s] [Lycoris Recode]: %s", os.date("%x"), os.date("%X"), str)
+		return string.format("[%s %s] [Aira]: %s", os.date("%x"), os.date("%X"), str)
 	end
 
 	---Create a manually managed notification.
@@ -6076,8 +6088,8 @@ end)
 ---Fetch human controller.
 ---@return table?
 InputClient.getHumanController = LPH_NO_VIRTUALIZE(function()
-	---@note: Shouldn't be too many connections to PreAnimation.
-	for _, connection in next, getconnections(runService.PreAnimation) do
+	---@note: Shouldn't be too many connections to PreSimulation.
+	for _, connection in next, getconnections(runService.PreSimulation) do
 		local func = connection.Function
 		if not func then
 			continue
@@ -6271,7 +6283,7 @@ InputClient.dodge = LPH_NO_VIRTUALIZE(function(options)
 	if not dodge then
 		return Logger.warn("Cannot dodge without dodge remote.")
 	end
-	
+
 	local stopDodge = KeyHandling.getRemote("StopDodge")
 	if not stopDodge then
 		return Logger.warn("Cannot dodge without stop dodge remote.")
@@ -6281,7 +6293,7 @@ InputClient.dodge = LPH_NO_VIRTUALIZE(function(options)
 	if not inputData then
 		return Logger.warn("Cannot dodge without input data.")
 	end
-	
+
 	local effectReplicator = replicatedStorage:FindFirstChild("EffectReplicator")
 	if not effectReplicator then
 		return Logger.warn("Cannot dodge without effect replicator.")
@@ -6296,7 +6308,7 @@ InputClient.dodge = LPH_NO_VIRTUALIZE(function(options)
 		dodge:FireServer("roll", nil, nil, false)
 
 		-- Delay required for extra dodge frames.
-		task.wait(.15)
+		task.wait(0.15)
 
 		return stopDodge:FireServer(inputData, effectReplicatorModule:HasEffect("LightAttack"), true)
 	end
@@ -9780,7 +9792,7 @@ function AutoLoot.process(prompt, options)
 			continue
 		end
 
-		local matched = text:match("â˜…")
+		local matched = text:match("★")
 		local stars = matched and #matched or 0
 
 		if stars < options.smin or stars > options.smax then
@@ -11147,7 +11159,6 @@ __bundle_register("Utility/Serializer", function(require, _LOADED, __bundle_regi
 --[[
  * MessagePack serializer / decode (0.6.1) written in pure Lua 5.3 / Lua 5.4
  * written by Sebastian Steinhauer <s.steinhauer@yahoo.de>
- * modified by the Lycoris Team <discord.gg/lyc>
  *
  * This is free and unencumbered software released into the public domain.
  *
@@ -11567,321 +11578,6 @@ end
 
 -- Return Wipe module.
 return Wipe
-
-end)
-__bundle_register("Game/UpdateNotifier", function(require, _LOADED, __bundle_register, __bundle_modules)
--- Update notifier popup.
-local UpdateNotifier = {}
-
----@module GUI.Library
-local Library = require("GUI/Library")
-
----@module Utility.Logger
-local Logger = require("Utility/Logger")
-
--- Services.
-local tweenService = game:GetService("TweenService")
-local coreGui = game:GetService("CoreGui")
-
--- Constants.
-local VERSION_FILE = "Lycoris-Rewrite-Version.txt"
-
----Check if update popup should show and display it.
----@param version string
-function UpdateNotifier.check(version)
-	if not version then
-		return
-	end
-
-	-- Check workspace version file.
-	local shouldShow = false
-
-	if isfile and isfile(VERSION_FILE) then
-		local savedVersion = readfile(VERSION_FILE)
-		if savedVersion ~= version then
-			shouldShow = true
-		end
-	else
-		shouldShow = true
-	end
-
-	if not shouldShow then
-		return
-	end
-
-	-- Update file.
-	if writefile then
-		pcall(writefile, VERSION_FILE, version)
-	end
-
-	-- Show popup.
-	UpdateNotifier.show(version)
-end
-
----Show the update popup.
----@param version string
-function UpdateNotifier.show(version)
-	-- ScreenGui.
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "LycorisUpdatePopup"
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.DisplayOrder = 999
-	screenGui.IgnoreGuiInset = true
-
-	pcall(function()
-		screenGui.Parent = coreGui
-	end)
-
-	if not screenGui.Parent then
-		pcall(function()
-			screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-		end)
-	end
-
-	-- Overlay.
-	local overlay = Instance.new("Frame")
-	overlay.Name = "Overlay"
-	overlay.Size = UDim2.new(1, 0, 1, 0)
-	overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	overlay.BackgroundTransparency = 1
-	overlay.BorderSizePixel = 0
-	overlay.ZIndex = 90
-	overlay.Parent = screenGui
-
-	-- Outer frame.
-	local outer = Instance.new("Frame")
-	outer.Name = "Outer"
-	outer.AnchorPoint = Vector2.new(0.5, 0.5)
-	outer.Position = UDim2.new(0.5, 0, 0.5, 0)
-	outer.Size = UDim2.new(0, 380, 0, 340)
-	outer.BackgroundTransparency = 1
-	outer.BorderSizePixel = 0
-	outer.ZIndex = 100
-	outer.Parent = screenGui
-
-	-- Inner frame.
-	local inner = Instance.new("Frame")
-	inner.Name = "Inner"
-	inner.Size = UDim2.new(1, 0, 1, 0)
-	inner.BackgroundColor3 = Library.MainColor
-	inner.BorderMode = Enum.BorderMode.Inset
-	inner.BorderColor3 = Library.OutlineColor
-	inner.BorderSizePixel = 1
-	inner.ZIndex = 101
-	inner.BackgroundTransparency = 1
-	inner.Parent = outer
-
-	Library:AddToRegistry(inner, {
-		BackgroundColor3 = "MainColor",
-		BorderColor3 = "OutlineColor",
-	})
-
-	-- Accent bar.
-	local accentBar = Instance.new("Frame")
-	accentBar.Name = "AccentBar"
-	accentBar.Size = UDim2.new(1, 0, 0, 2)
-	accentBar.Position = UDim2.new(0, 0, 0, 0)
-	accentBar.BackgroundColor3 = Library.AccentColor
-	accentBar.BorderSizePixel = 0
-	accentBar.ZIndex = 102
-	accentBar.BackgroundTransparency = 1
-	accentBar.Parent = inner
-
-	Library:AddToRegistry(accentBar, {
-		BackgroundColor3 = "AccentColor",
-	})
-
-	-- Title.
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Text = "v" .. version .. " New Update"
-	title.Position = UDim2.new(0, 0, 0, 8)
-	title.Size = UDim2.new(1, 0, 0, 22)
-	title.BackgroundTransparency = 1
-	title.TextColor3 = Library.AccentColor
-	title.FontFace = Library.Font
-	title.TextSize = 22
-	title.TextXAlignment = Enum.TextXAlignment.Center
-	title.ZIndex = 102
-	title.TextTransparency = 1
-	title.Parent = inner
-
-	Library:AddToRegistry(title, {
-		TextColor3 = "AccentColor",
-	})
-
-	-- Separator.
-	local separator = Instance.new("Frame")
-	separator.Name = "Separator"
-	separator.Size = UDim2.new(1, -16, 0, 1)
-	separator.Position = UDim2.new(0, 8, 0, 34)
-	separator.BackgroundColor3 = Library.OutlineColor
-	separator.BorderSizePixel = 0
-	separator.ZIndex = 102
-	separator.BackgroundTransparency = 1
-	separator.Parent = inner
-
-	Library:AddToRegistry(separator, {
-		BackgroundColor3 = "OutlineColor",
-	})
-
-	-- Body scrolling frame.
-	local bodyFrame = Instance.new("ScrollingFrame")
-	bodyFrame.Name = "Body"
-	bodyFrame.Position = UDim2.new(0, 8, 0, 40)
-	bodyFrame.Size = UDim2.new(1, -16, 1, -82)
-	bodyFrame.BackgroundColor3 = Library.BackgroundColor
-	bodyFrame.BorderColor3 = Library.OutlineColor
-	bodyFrame.BorderMode = Enum.BorderMode.Inset
-	bodyFrame.BorderSizePixel = 1
-	bodyFrame.ScrollBarThickness = 4
-	bodyFrame.ScrollBarImageColor3 = Library.AccentColor
-	bodyFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-	bodyFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	bodyFrame.ZIndex = 102
-	bodyFrame.ScrollingDirection = Enum.ScrollingDirection.Y
-	bodyFrame.BackgroundTransparency = 1
-	bodyFrame.Parent = inner
-
-	Library:AddToRegistry(bodyFrame, {
-		BackgroundColor3 = "BackgroundColor",
-		BorderColor3 = "OutlineColor",
-		ScrollBarImageColor3 = "AccentColor",
-	})
-
-	-- Body text.
-	local bodyText = Instance.new("TextLabel")
-	bodyText.Name = "BodyText"
-	bodyText.Text = "Loading release notes..."
-	bodyText.Size = UDim2.new(1, -12, 0, 0)
-	bodyText.Position = UDim2.new(0, 6, 0, 4)
-	bodyText.AutomaticSize = Enum.AutomaticSize.Y
-	bodyText.BackgroundTransparency = 1
-	bodyText.TextColor3 = Library.FontColor
-	bodyText.FontFace = Library.Font
-	bodyText.TextSize = 15
-	bodyText.TextXAlignment = Enum.TextXAlignment.Left
-	bodyText.TextYAlignment = Enum.TextYAlignment.Top
-	bodyText.TextWrapped = true
-	bodyText.ZIndex = 103
-	bodyText.RichText = true
-	bodyText.TextTransparency = 1
-	bodyText.Parent = bodyFrame
-
-	Library:AddToRegistry(bodyText, {
-		TextColor3 = "FontColor",
-	})
-
-	-- Dismiss button.
-	local dismissBtn = Instance.new("TextButton")
-	dismissBtn.Name = "Dismiss"
-	dismissBtn.AnchorPoint = Vector2.new(0.5, 0)
-	dismissBtn.Position = UDim2.new(0.5, 0, 1, -36)
-	dismissBtn.Size = UDim2.new(1, -16, 0, 28)
-	dismissBtn.BackgroundColor3 = Library.MainColor
-	dismissBtn.BorderColor3 = Library.OutlineColor
-	dismissBtn.BorderMode = Enum.BorderMode.Inset
-	dismissBtn.BorderSizePixel = 1
-	dismissBtn.Text = "Dismiss"
-	dismissBtn.TextColor3 = Library.FontColor
-	dismissBtn.FontFace = Font.new("rbxasset://fonts/families/SourceSansPro.json")
-	dismissBtn.TextSize = 16
-	dismissBtn.ZIndex = 102
-	dismissBtn.AutoButtonColor = false
-	dismissBtn.BackgroundTransparency = 1
-	dismissBtn.TextTransparency = 1
-	dismissBtn.Parent = inner
-
-	Library:AddToRegistry(dismissBtn, {
-		BackgroundColor3 = "MainColor",
-		BorderColor3 = "OutlineColor",
-		TextColor3 = "FontColor",
-	})
-
-	-- Button hover.
-	dismissBtn.MouseEnter:Connect(function()
-		dismissBtn.BackgroundColor3 = Library.AccentColor
-	end)
-
-	dismissBtn.MouseLeave:Connect(function()
-		dismissBtn.BackgroundColor3 = Library.MainColor
-	end)
-
-	-- Fade in.
-	local function fadeIn()
-		tweenService:Create(overlay, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundTransparency = 0.5
-		}):Play()
-
-		outer.Size = UDim2.new(0, 360, 0, 320)
-
-		tweenService:Create(outer, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 380, 0, 340)
-		}):Play()
-
-		tweenService:Create(inner, TweenInfo.new(0.3), { BackgroundTransparency = 0 }):Play()
-		tweenService:Create(accentBar, TweenInfo.new(0.3), { BackgroundTransparency = 0 }):Play()
-		tweenService:Create(separator, TweenInfo.new(0.3), { BackgroundTransparency = 0 }):Play()
-		tweenService:Create(bodyFrame, TweenInfo.new(0.3), { BackgroundTransparency = 0 }):Play()
-		tweenService:Create(title, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
-		tweenService:Create(bodyText, TweenInfo.new(0.3), { TextTransparency = 0 }):Play()
-		tweenService:Create(dismissBtn, TweenInfo.new(0.3), { BackgroundTransparency = 0, TextTransparency = 0 }):Play()
-	end
-
-	-- Fade out.
-	local function fadeOut()
-		tweenService:Create(overlay, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			BackgroundTransparency = 1
-		}):Play()
-
-		tweenService:Create(inner, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
-		tweenService:Create(accentBar, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
-		tweenService:Create(separator, TweenInfo.new(0.2), { BackgroundTransparency = 1 }):Play()
-		tweenService:Create(bodyFrame, TweenInfo.new(0.2), { BackgroundTransparency = 1, ScrollBarImageTransparency = 1 }):Play()
-		tweenService:Create(title, TweenInfo.new(0.2), { TextTransparency = 1 }):Play()
-		tweenService:Create(bodyText, TweenInfo.new(0.2), { TextTransparency = 1 }):Play()
-		tweenService:Create(dismissBtn, TweenInfo.new(0.2), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
-
-		task.wait(0.25)
-		screenGui:Destroy()
-	end
-
-	-- Dismiss handler.
-	dismissBtn.MouseButton1Click:Connect(fadeOut)
-
-	-- Fetch release notes from GitHub.
-	task.spawn(function()
-		local success, response = pcall(function()
-			return game:HttpGet("https://api.github.com/repos/Kendu378/Lycoris/releases/latest")
-		end)
-
-		if success and response then
-			local data = game:GetService("HttpService"):JSONDecode(response)
-			if data and data.body then
-				-- Strip version line and script block from release notes.
-				local notes = data.body
-				notes = notes:gsub("%*Your version should be[^\n]*%*", "")
-				notes = notes:gsub("```lua.-```", "")
-				notes = notes:gsub("```%w*\n?", "")
-				notes = notes:gsub("%*%*", "")
-				notes = notes:gsub("\n\n\n+", "\n\n")
-				notes = notes:gsub("\n(%d+%.) ", "\n\n%1 ")
-				notes = notes:match("^%s*(.-)%s*$") or notes
-				bodyText.Text = notes
-			else
-				bodyText.Text = "v" .. version .. " has been released."
-			end
-		else
-			bodyText.Text = "v" .. version .. " has been released."
-		end
-	end)
-
-	-- Show.
-	fadeIn()
-end
-
--- Return UpdateNotifier module.
-return UpdateNotifier
 
 end)
 __bundle_register("Game/Timings/ModuleManager", function(require, _LOADED, __bundle_register, __bundle_modules)
@@ -15306,26 +15002,6 @@ local INTERNAL_MODULES = {
         	self:action(timing, action)
         end
     end,
-
-	["JetstrikerKick"] = function()
-        ---@class Action
-        local Action = getfenv().Action
-
-        ---Module function.
-        ---@param self AnimatorDefender
-        ---@param timing AnimationTiming
-        return function(self, timing)
-        	local action = Action.new()
-        	action._when = 150
-        	action._type = "Parry"
-        	action.hitbox = Vector3.new(20, 20, 20)
-        	action.name = "Jetstriker Kick"
-        	return self:action(timing, action)
-        end
-    end,
-
-
-
     ["JusKaritaCritical"] = function()
         ---@class Action
         local Action = getfenv().Action
@@ -17684,8 +17360,8 @@ local INTERNAL_MODULES = {
         	action.hitbox = Vector3.new(0, 0, 0)
         	action.name = "Contact"
         	return self:action(timing, action)
-        	--]]
-        	
+        	]]
+        	--
         end
     end,
     ["SmoulderingHallow"] = function()
@@ -21092,7 +20768,7 @@ end)
 
 ---On effect removing.
 ---@param effect table
-local onEffectRemoved = LPH_NO_VIRTUALIZE(function(effect)
+local onEffectRemoving = LPH_NO_VIRTUALIZE(function(effect)
 	if effect.Class == "PerfectStack" then
 		StateListener.chainStacks = nil
 	end
@@ -21116,14 +20792,14 @@ function StateListener.init()
 	local effectRemovedSignal = Signal.new(effectReplicatorModule.EffectRemoved)
 
 	stateMaid:mark(effectAddedSignal:connect("StateListener_EffectReplicated", onEffectReplicated))
-	stateMaid:mark(effectRemovedSignal:connect("StateListener_EffectRemoved", onEffectRemoved))
+	stateMaid:mark(effectRemovedSignal:connect("StateListener_EffectRemoved", onEffectRemoving))
 	stateMaid:mark(liveDescendantAdded:connect("StateListener_DescendantAdded", onDescendantAdded))
 
 	for _, effect in next, effectReplicatorModule.Effects do
 		onEffectReplicated(effect)
 	end
 
-	for _, descendant in next, live:QueryDescendants('Animator') do
+	for _, descendant in next, live:QueryDescendants("Animator") do
 		onDescendantAdded(descendant)
 	end
 
@@ -27102,11 +26778,11 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            nvfb = false,
 	    	            smn = false,
-	    	            ha = true,
+	    	            ha = false,
 	    	            iae = false,
 	    	            imxd = -62.333333333333336,
 	    	            tag = "Critical",
-	    	            nbfb = true,
+	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\028\019\024\028\025\026\027\025\026\027"] = {
@@ -27899,6 +27575,47 @@ function SaveManager.init()
 	    	            iae = false,
 	    	            imxd = -63.25,
 	    	            tag = "Mantra",
+	    	            nbfb = false,
+	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
+	    	        },
+	    ["XHRKYYO^CN\016\005\005\027\026\027\025\025\018\024\027\028\025\027"] = {
+	    	            rpd = -10.25,
+	    	            hso = 0,
+	    	            ieae = false,
+	    	            actions = {},
+	    	            ndfb = false,
+	    	            _id = "XHRKYYO^CN\016\005\005\027\026\027\025\025\018\024\027\028\025\027",
+	    	            mat = 4000,
+	    	            rpue = true,
+	    	            srpn = false,
+	    	            punishable = 0,
+	    	            name = "zKXKYC^CIfOOIB",
+	    	            hitbox = {
+	    	                X = -68.58333333333333,
+	    	                Y = -68.58333333333333,
+	    	                Z = -68.58333333333333
+	    	            },
+	    	            fhb = true,
+	    	            imdd = -68.58333333333333,
+	    	            duih = false,
+	    	            rsd = -35.25,
+	    	            umoa = false,
+	    	            smod = "d\005k",
+	    	            bfht = 0.3,
+	    	            pfh = false,
+	    	            after = 0,
+	    	            imb = false,
+	    	            dp = false,
+	    	            phd = false,
+	    	            phds = 0,
+	    	            pfht = 0.15,
+	    	            aatk = false,
+	    	            nvfb = false,
+	    	            smn = false,
+	    	            ha = false,
+	    	            iae = true,
+	    	            imxd = -58.75,
+	    	            tag = "Undefined",
 	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
@@ -29202,7 +28919,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\027\027\018\028\028\031\024\028\031\018"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = 0,
 	    	            ieae = false,
 	    	            actions = {
 	    	                {
@@ -29229,22 +28946,22 @@ function SaveManager.init()
 	    	                Y = -68.58333333333333,
 	    	                Z = -68.58333333333333
 	    	            },
-	    	            fhb = false,
+	    	            fhb = true,
 	    	            imdd = -68.58333333333333,
 	    	            duih = false,
 	    	            rsd = 0,
 	    	            umoa = true,
 	    	            smod = "}OKZED~OY^",
-	    	            bfht = 0.6,
-	    	            pfh = false,
+	    	            bfht = 0.3,
+	    	            pfh = true,
 	    	            after = 0,
 	    	            imb = false,
-	    	            dp = true,
+	    	            dp = false,
 	    	            phd = true,
-	    	            phds = 0.25,
-	    	            pfht = 0.25,
+	    	            phds = 0.4,
+	    	            pfht = 0.15,
 	    	            aatk = false,
-	    	            nvfb = true,
+	    	            nvfb = false,
 	    	            smn = false,
 	    	            ha = false,
 	    	            iae = false,
@@ -34366,7 +34083,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -35188,7 +34905,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -35509,11 +35226,11 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            nvfb = false,
 	    	            smn = false,
-	    	            ha = true,
+	    	            ha = false,
 	    	            iae = false,
 	    	            imxd = -60.583333333333336,
 	    	            tag = "Critical",
-	    	            nbfb = true,
+	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\026\027\028\018\028\028\025\027\027\027"] = {
@@ -36403,7 +36120,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = true,
 	    	            phds = 1,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -36879,7 +36596,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -39868,7 +39585,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\024\027\026\028\026\019\027\027\025\028"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = -4,
 	    	            ieae = false,
 	    	            actions = {},
 	    	            ndfb = false,
@@ -39893,10 +39610,10 @@ function SaveManager.init()
 	    	            pfh = true,
 	    	            after = 0,
 	    	            imb = false,
-	    	            dp = false,
+	    	            dp = true,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -41077,7 +40794,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\025\029\031\028\031\019\026\027\028\030\029\027\019\026"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = -4,
 	    	            ieae = false,
 	    	            actions = {
 	    	                {
@@ -41117,7 +40834,7 @@ function SaveManager.init()
 	    	            dp = true,
 	    	            phd = true,
 	    	            phds = 0.6,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -41170,7 +40887,7 @@ function SaveManager.init()
 	    	            dp = true,
 	    	            phd = true,
 	    	            phds = 0.6,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -43130,7 +42847,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -43718,7 +43435,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = true,
 	    	            phds = 1,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -45782,7 +45499,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\024\027\026\028\026\019\031\018\019\024"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = -4,
 	    	            ieae = false,
 	    	            actions = {},
 	    	            ndfb = false,
@@ -45807,10 +45524,10 @@ function SaveManager.init()
 	    	            pfh = true,
 	    	            after = 0,
 	    	            imb = false,
-	    	            dp = false,
+	    	            dp = true,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -46026,11 +45743,11 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            nvfb = false,
 	    	            smn = false,
-	    	            ha = true,
+	    	            ha = false,
 	    	            iae = false,
 	    	            imxd = -64.16666666666667,
 	    	            tag = "Critical",
-	    	            nbfb = true,
+	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\024\019\019\026\019\018\019\030\027\018"] = {
@@ -50581,7 +50298,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\018\018\028\024\026\029\030\031\029\028\029\019\030\030"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = -4,
 	    	            ieae = false,
 	    	            actions = {
 	    	                {
@@ -50621,7 +50338,7 @@ function SaveManager.init()
 	    	            dp = true,
 	    	            phd = true,
 	    	            phds = 0.6,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -50715,7 +50432,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = true,
 	    	            phds = 1,
-	    	            pfht = 0.25,
+	    	            pfht = 0.2500000298023224,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -50723,6 +50440,59 @@ function SaveManager.init()
 	    	            iae = false,
 	    	            imxd = -62.333333333333336,
 	    	            tag = "M1",
+	    	            nbfb = false,
+	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
+	    	        },
+	    ["XHRKYYO^CN\016\005\005\027\026\027\026\030\024\019\030\029\025\028"] = {
+	    	            rpd = -10.25,
+	    	            hso = 0,
+	    	            ieae = false,
+	    	            actions = {
+	    	                {
+	    	                    _type = "zKXXS",
+	    	                    name = "\027",
+	    	                    hitbox = {
+	    	                        X = -43.58333333333333,
+	    	                        Y = -43.58333333333333,
+	    	                        Z = -43.58333333333333
+	    	                    },
+	    	                    when = -35.25,
+	    	                    ihbc = false
+	    	                }
+	    	            },
+	    	            ndfb = false,
+	    	            _id = "XHRKYYO^CN\016\005\005\027\026\027\026\030\024\019\030\029\025\028",
+	    	            mat = 4000,
+	    	            rpue = false,
+	    	            srpn = false,
+	    	            punishable = 0,
+	    	            name = "fCDAY^XCAOXfCDA",
+	    	            hitbox = {
+	    	                X = -68.58333333333333,
+	    	                Y = -68.58333333333333,
+	    	                Z = -68.58333333333333
+	    	            },
+	    	            fhb = false,
+	    	            imdd = -68.58333333333333,
+	    	            duih = false,
+	    	            rsd = -35.25,
+	    	            umoa = false,
+	    	            smod = "d\005k",
+	    	            bfht = 0.3,
+	    	            pfh = false,
+	    	            after = 0,
+	    	            imb = false,
+	    	            dp = false,
+	    	            phd = false,
+	    	            phds = 0,
+	    	            pfht = 0.15,
+	    	            aatk = false,
+	    	            nvfb = false,
+	    	            smn = false,
+	    	            ha = false,
+	    	            iae = false,
+	    	            imxd = -58.75,
+	    	            tag = "Undefined",
 	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
@@ -51480,7 +51250,7 @@ function SaveManager.init()
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\024\027\026\028\026\019\025\031\029\019"] = {
 	    	            rpd = 0,
-	    	            hso = -5,
+	    	            hso = -4,
 	    	            ieae = false,
 	    	            actions = {},
 	    	            ndfb = false,
@@ -51505,10 +51275,10 @@ function SaveManager.init()
 	    	            pfh = true,
 	    	            after = 0,
 	    	            imb = false,
-	    	            dp = false,
+	    	            dp = true,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -52161,7 +51931,7 @@ function SaveManager.init()
 	    	            dp = false,
 	    	            phd = false,
 	    	            phds = 0.6,
-	    	            pfht = 0.5,
+	    	            pfht = 0.5000000596046448,
 	    	            aatk = false,
 	    	            nvfb = true,
 	    	            smn = false,
@@ -52894,11 +52664,11 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            nvfb = false,
 	    	            smn = false,
-	    	            ha = true,
+	    	            ha = false,
 	    	            iae = false,
 	    	            imxd = -60.083333333333336,
 	    	            tag = "Critical",
-	    	            nbfb = true,
+	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\031\019\030\027\029\025\018\029\028\019"] = {
@@ -53128,11 +52898,11 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            nvfb = false,
 	    	            smn = false,
-	    	            ha = true,
+	    	            ha = false,
 	    	            iae = false,
 	    	            imxd = -63.25,
 	    	            tag = "Critical",
-	    	            nbfb = true,
+	    	            nbfb = false,
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\018\030\030\031\030\018\019\027\028\026"] = {
@@ -54549,8 +54319,8 @@ function SaveManager.init()
 	    	            after = 0,
 	    	            imb = false,
 	    	            dp = true,
-	    	            pfht = 0.25,
-	    	            phds = 0.25,
+	    	            pfht = 0.2500000298023224,
+	    	            phds = 0.2500000298023224,
 	    	            phd = true,
 	    	            aatk = false,
 	    	            nvfb = true,
@@ -54590,8 +54360,8 @@ function SaveManager.init()
 	    	            after = 0,
 	    	            imb = false,
 	    	            dp = true,
-	    	            pfht = 0.25,
-	    	            phds = 0.25,
+	    	            pfht = 0.2500000298023224,
+	    	            phds = 0.2500000298023224,
 	    	            phd = true,
 	    	            aatk = false,
 	    	            nvfb = true,
@@ -56853,59 +56623,6 @@ function SaveManager.init()
 	    	            tag = "Undefined",
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        },
-	    ["XHRKYYO^CN\016\005\005\018\025\027\031\018\031\030\024\027\018\029\027\029\018"] = {
-	    	            rpd = 0,
-	    	            hso = 0,
-	    	            ieae = false,
-	    	            actions = {
-	    	                {
-	    	                    _type = "zKXXS",
-	    	                    name = "\027",
-	    	                    hitbox = {
-	    	                        X = -66.66666666666667,
-	    	                        Y = -66.83333333333333,
-	    	                        Z = -66.83333333333333
-	    	                    },
-	    	                    when = -39.41666666666667,
-	    	                    ihbc = false
-	    	                }
-	    	            },
-	    	            ndfb = false,
-	    	            nbfb = false,
-	    	            _id = "XHRKYYO^CN\016\005\005\018\025\027\031\018\031\030\024\027\018\029\027\029\018",
-	    	            mat = 2000,
-	    	            rpue = false,
-	    	            srpn = false,
-	    	            punishable = 0,
-	    	            name = "x_DDCDMiXSZ^iXC^",
-	    	            hitbox = {
-	    	                X = -68.58333333333333,
-	    	                Y = -68.58333333333333,
-	    	                Z = -68.58333333333333
-	    	            },
-	    	            fhb = true,
-	    	            imdd = -68.58333333333333,
-	    	            duih = false,
-	    	            rsd = 0,
-	    	            umoa = false,
-	    	            smod = "d\005k",
-	    	            bfht = 0.3,
-	    	            pfh = false,
-	    	            after = 0,
-	    	            imb = false,
-	    	            dp = false,
-	    	            pfht = 0.15,
-	    	            phds = 0,
-	    	            phd = false,
-	    	            aatk = false,
-	    	            nvfb = false,
-	    	            smn = false,
-	    	            iae = false,
-	    	            ha = false,
-	    	            imxd = -60.583333333333336,
-	    	            tag = "Undefined",
-	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
-	    	        },
 	    ["XHRKYYO^CN\016\005\005\027\026\026\029\029\029\027\024\025\026\029\027\027\029\025"] = {
 	    	            rpd = 0,
 	    	            hso = 0,
@@ -57505,100 +57222,6 @@ function SaveManager.init()
 	    	            imxd = 14.75,
 	    	            tag = "Undefined",
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
-	    	        },
-	    ["XHRKYYO^CN\016\005\005\019\030\026\030\028\025\025\028\026\029\025\024\031\024"] = {
-	    	            rpd = 0,
-	    	            hso = 0,
-	    	            ieae = false,
-	    	            actions = {
-	    	                {
-	    	                    _type = "zKXXS",
-	    	                    name = "\027",
-	    	                    hitbox = {
-	    	                        X = -66.91666666666667,
-	    	                        Y = -66.91666666666667,
-	    	                        Z = -66.91666666666667
-	    	                    },
-	    	                    when = -47.75,
-	    	                    ihbc = false
-	    	                }
-	    	            },
-	    	            ndfb = false,
-	    	            nbfb = true,
-	    	            _id = "XHRKYYO^CN\016\005\005\019\030\026\030\028\025\025\028\026\029\025\024\031\024",
-	    	            mat = 2000,
-	    	            rpue = false,
-	    	            srpn = false,
-	    	            punishable = 0,
-	    	            name = "fl~iXC^hFEEN\027",
-	    	            hitbox = {
-	    	                X = -68.58333333333333,
-	    	                Y = -68.58333333333333,
-	    	                Z = -68.58333333333333
-	    	            },
-	    	            fhb = true,
-	    	            imdd = -68.58333333333333,
-	    	            duih = false,
-	    	            rsd = 0,
-	    	            umoa = false,
-	    	            smod = "d\005k",
-	    	            bfht = 0.3,
-	    	            pfh = false,
-	    	            after = 0,
-	    	            imb = false,
-	    	            dp = false,
-	    	            pfht = 0.15,
-	    	            phds = 0,
-	    	            phd = false,
-	    	            aatk = false,
-	    	            nvfb = false,
-	    	            smn = false,
-	    	            iae = false,
-	    	            ha = true,
-	    	            imxd = -60.583333333333336,
-	    	            tag = "Critical",
-	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
-	    	        },
-	    ["XHRKYYO^CN\016\005\005\027\026\024\018\024\028\026\029\024\027\018\025\026\029\030"] = {
-	    	            rpd = 0,
-	    	            hso = 0,
-	    	            ieae = false,
-	    	            actions = {},
-	    	            ndfb = false,
-	    	            nbfb = false,
-	    	            _id = "XHRKYYO^CN\016\005\005\027\026\024\018\024\028\026\029\024\027\018\025\026\029\030",
-	    	            mat = 2000,
-	    	            rpue = false,
-	    	            srpn = false,
-	    	            punishable = 0,
-	    	            name = "kCXiE_D^OX",
-	    	            hitbox = {
-	    	                X = -68.58333333333333,
-	    	                Y = -68.58333333333333,
-	    	                Z = -68.58333333333333
-	    	            },
-	    	            fhb = true,
-	    	            imdd = -68.58333333333333,
-	    	            duih = false,
-	    	            rsd = 0,
-	    	            umoa = false,
-	    	            smod = "d\005k",
-	    	            bfht = 0.3,
-	    	            pfh = false,
-	    	            after = 0,
-	    	            imb = false,
-	    	            dp = false,
-	    	            pfht = 0.15,
-	    	            phds = 0,
-	    	            phd = false,
-	    	            aatk = false,
-	    	            nvfb = false,
-	    	            smn = false,
-	    	            iae = false,
-	    	            ha = false,
-	    	            imxd = -57.833333333333336,
-	    	            tag = "M1",
-	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
 	    	        }
 	}
 	)
@@ -58098,13 +57721,13 @@ function SaveManager.init()
 	    ["cIOxCYO"] = {
 	    	            smod = "d\005k",
 	    	            ename = "cIOxCYO",
-	    	            _type = nil,
+	    	            _type = "Parry",
 	    	            name = "cIOxCYO",
 	    	            tag = "Undefined",
 	    	            rpd = 0,
 	    	            hso = 0,
 	    	            bfht = 0.3,
-	    	            when = nil,
+	    	            when = 400,
 	    	            rsd = 0,
 	    	            after = 0,
 	    	            punishable = 0,
@@ -58118,7 +57741,7 @@ function SaveManager.init()
 	    	            umoa = false,
 	    	            flp = false,
 	    	            ilp = false,
-	    	            ihbc = nil,
+	    	            ihbc = false,
 	    	            ndfb = false,
 	    	            duih = false,
 	    	            nvfb = false,
@@ -58127,18 +57750,18 @@ function SaveManager.init()
 	    	            aatk = false,
 	    	            smn = false,
 	    	            fhb = true,
-	    	            nbfb = false,
+	    	            nbfb = nil,
 	    	            actions = {
 	    	                {
 	    	                    _type = "zKXXS",
 	    	                    name = "\027",
+	    	                    when = -39.41666666666667,
+	    	                    ihbc = false,
 	    	                    hitbox = {
 	    	                        X = -66.5,
 	    	                        Y = -66.25,
 	    	                        Z = -66.5
-	    	                    },
-	    	                    when = -39.41666666666667,
-	    	                    ihbc = false
+	    	                    }
 	    	                }
 	    	            },
 	    	            STOP_TRYING_TO_DUMP_TIMINGS_LOL = "You can't unless you reverse Luraph or dynamically dump them <3"
@@ -64140,7 +63763,7 @@ Defender.valid = LPH_NO_VIRTUALIZE(function(self, options)
 	end
 
 	if actionType == (function(_s)local _r={} for _i=1,#_s do _r[_i]=string.char(bit32.bxor(string.byte(_s,_i),42)) end return table.concat(_r) end)("Parry") then
-		if effectReplicatorModule:FindEffect("AutoParry") then
+		if effectReplicatorModule:FindEffect("AutoParry") and Configuration.expectToggleValue("UseAutoParryFrames") then
 			return internalNotifyFunction(timing, "User has auto parry frames.")
 		end
 	end
@@ -64527,8 +64150,10 @@ Defender.handle = LPH_NO_VIRTUALIZE(function(self, timing, action, started)
 	local inIFrame = effectReplicatorModule:FindEffect("Immortal")
 		or effectReplicatorModule:FindEffect("Dodge")
 		or effectReplicatorModule:FindEffect("Ghost")
-	
-	if (actionType == "Dodge" or actionType == "Forced Full Dodge") and Configuration.expectToggleValue("ParryOnly") then
+
+	if
+		(actionType == "Dodge" or actionType == "Forced Full Dodge") and Configuration.expectToggleValue("ParryOnly")
+	then
 		actionType = "Parry"
 		self:notify(timing, "Action 'Dodge' changed to 'Parry'")
 	end
@@ -64655,7 +64280,7 @@ Defender.parry = LPH_NO_VIRTUALIZE(function(self, timing, action)
 	if timing.umoa or timing.actions:count() ~= 1 then
 		dashReplacement = false
 	end
-	
+
 	if Configuration.expectToggleValue("ParryOnly") then
 		dashReplacement = false
 	end
@@ -64914,7 +64539,12 @@ Defender.prediction = LPH_NO_VIRTUALIZE(function(self, timing, action)
 
 	local onCooldown = false
 	for _, effect in next, effectReplicatorModule.Effects do
-		if effect.Class == "ToolLockCD" and effect.index and effect.index.Value and tostring(effect.index.Value):find("PredictionIntelligence") then
+		if
+			effect.Class == "ToolLockCD"
+			and effect.index
+			and effect.index.Value
+			and tostring(effect.index.Value):find("PredictionIntelligence")
+		then
 			onCooldown = true
 			break
 		end
@@ -64933,7 +64563,7 @@ Defender.prediction = LPH_NO_VIRTUALIZE(function(self, timing, action)
 	end
 
 	activateMantra:FireServer(predictionMantra)
-	self:notify(timing, (function(_s)local _r={} for _i=1,#_s do _r[_i]=string.char(bit32.bxor(string.byte(_s,_i),42)) end return table.concat(_r) end)("Action 'Parry' replaced with 'Prediction' mantra."))
+	self:notify(timing, "Action 'Parry' replaced with 'Prediction' mantra.")
 end)
 
 ---Activate Punishment mantra instead of parrying.
@@ -64988,7 +64618,12 @@ Defender.punishment = LPH_NO_VIRTUALIZE(function(self, timing, action)
 		if predictionMantra then
 			local predictionOnCooldown = false
 			for _, effect in next, effectReplicatorModule.Effects do
-				if effect.Class == "ToolLockCD" and effect.index and effect.index.Value and tostring(effect.index.Value):find("PredictionIntelligence") then
+				if
+					effect.Class == "ToolLockCD"
+					and effect.index
+					and effect.index.Value
+					and tostring(effect.index.Value):find("PredictionIntelligence")
+				then
 					predictionOnCooldown = true
 					break
 				end
@@ -65042,7 +64677,12 @@ Defender.punishment = LPH_NO_VIRTUALIZE(function(self, timing, action)
 
 	local onCooldown = false
 	for _, effect in next, effectReplicatorModule.Effects do
-		if effect.Class == "ToolLockCD" and effect.index and effect.index.Value and tostring(effect.index.Value):find("RevengeWeaponHeavy") then
+		if
+			effect.Class == "ToolLockCD"
+			and effect.index
+			and effect.index.Value
+			and tostring(effect.index.Value):find("RevengeWeaponHeavy")
+		then
 			onCooldown = true
 			break
 		end
@@ -65061,7 +64701,7 @@ Defender.punishment = LPH_NO_VIRTUALIZE(function(self, timing, action)
 	end
 
 	activateMantra:FireServer(punishmentMantra)
-	self:notify(timing, (function(_s)local _r={} for _i=1,#_s do _r[_i]=string.char(bit32.bxor(string.byte(_s,_i),42)) end return table.concat(_r) end)("Action 'Parry' replaced with 'Punishment' mantra."))
+	self:notify(timing, "Action 'Parry' replaced with 'Punishment' mantra.")
 end)
 
 ---Handle auto feint.
@@ -66574,7 +66214,7 @@ local AP_BREAKER_IDS = {
 -- Maps entity to {suspectedUntil = timestamp, lowWeightTimes = {timestamps...}}
 local SUSPECTED_BREAKER_SOURCES = {}
 
----Is animation stopped. Made into a function for de-duplication.
+---Is animation stopped? Made into a function for de-duplication.
 ---@param self AnimatorDefender
 ---@param track AnimationTrack
 ---@param timing AnimationTiming
@@ -68558,27 +68198,7 @@ local function hasNetworkOwnership(part)
 		return false
 	end
 
-	if getexecutorname():match("AWP") then
-		return exploitFallback(part)
-	end
-
-	if getexecutorname():match("Volcano") then
-		return exploitFallback(part)
-	end
-
-	if not clientSuccess then
-		return exploitFallback(part)
-	end
-
-	local partSuccess, partPeerId = pcall(function()
-		return gethiddenproperty(part, "NetworkOwnerV3")
-	end)
-
-	if not partSuccess then
-		return exploitFallback(part)
-	end
-
-	return partPeerId == clientPeerId
+	return exploitFallback(part)
 end
 
 return LPH_NO_VIRTUALIZE(function()
@@ -68865,6 +68485,7 @@ return LPH_NO_VIRTUALIZE(function()
 
 	-- Variables.
 	local originalTags = nil
+	local modified = false
 
 	-- Constants.
 	local EXPECTED_EMOTE_CHILDREN = 20 + 1
@@ -68891,14 +68512,24 @@ return LPH_NO_VIRTUALIZE(function()
 			return
 		end
 
-		local mainFrame = gestureGui:FindFirstChild("MainFrame")
-		local gestureScroll = mainFrame and mainFrame:FindFirstChild("GestureScroll")
-		if not gestureScroll then
+		local gestureFrame = gestureGui:FindFirstChild("GestureFrame")
+    if not gestureFrame then
 			return
 		end
 
-		local starterGestureGui = starterGui:FindFirstChild("GestureGui")
-		if not starterGestureGui then
+		local commFrame = gestureFrame:FindFirstChild("CommFrame")
+		if not commFrame then
+			return
+		end
+
+		local commScroll = commFrame and commFrame:FindFirstChild("GestureScroll")
+		if not commScroll then
+			return
+		end
+
+		local mainFrame = gestureFrame:FindFirstChild("MainFrame")
+		local gestureScroll = mainFrame and mainFrame:FindFirstChild("GestureScroll")
+		if not gestureScroll then
 			return
 		end
 
@@ -68918,10 +68549,22 @@ return LPH_NO_VIRTUALIZE(function()
 			return
 		end
 
-		gestureGui:Destroy()
+		for _, instance in next, gestureScroll:GetDescendants() do
+			if not instance:IsA("UIListLayout") and not instance:IsA("UIPadding") then
+				instance:Destroy()
+			end
+		end
 
-		local newGestureGui = starterGestureGui:Clone()
+		for _, instance in next, commScroll:GetDescendants() do
+			if not instance:IsA("UIListLayout") and not instance:IsA("UIPadding") then
+				instance:Destroy()
+			end
+		end
+
+		local newGestureGui = gestureGui:Clone()
+		gestureGui:Destroy()
 		newGestureGui.Parent = playerGui
+		modified = true
 	end
 
 	---Reset emote spoofer.
@@ -68936,12 +68579,40 @@ return LPH_NO_VIRTUALIZE(function()
 		end
 
 		for _, tag in next, EMOTE_SPOOFER_TAGS do
-			if not originalTags[tag] then
+			if originalTags[tag] then
 				continue
 			end
 
 			collectionService:RemoveTag(localPlayer, tag)
 		end
+
+		if not modified then
+			return
+		end
+
+		local playerGui = localPlayer.PlayerGui
+		if not playerGui then
+			return
+		end
+
+		local gestureGui = playerGui:FindFirstChild("GestureGui")
+		if not gestureGui then
+			return
+		end
+
+		local clientStarterGui = replicatedStorage:FindFirstChild("ClientStarterGui")
+		if not clientStarterGui then
+			return
+		end
+
+		local copyGestureGui = clientStarterGui:FindFirstChild("GestureGui")
+		if not copyGestureGui then
+			return
+		end
+
+		gestureGui:Destroy()
+		copyGestureGui:Clone().Parent = playerGui
+		modified = false
 	end
 
 	---Update freestyler band spoof.
@@ -69426,9 +69097,6 @@ return LPH_NO_VIRTUALIZE(function()
 	---@module Game.LeaderboardClient
 	local LeaderboardClient = require("Game/LeaderboardClient")
 
-	---@module Features.Exploit.InspectAssets
-	local InspectAssets = require("Features/Exploit/InspectAssets")
-
 	-- Monitoring module.
 	local Monitoring = { subject = nil, seen = {} }
 
@@ -69444,7 +69112,6 @@ return LPH_NO_VIRTUALIZE(function()
 	local spectateMaid = Maid.new()
 	local buildStealMaid = Maid.new()
 	local plwMaid = Maid.new()
-	local hairStealMaid = Maid.new()
 
 	-- Instances.
 	local beepSound = CoreGuiManager.imark(Instance.new("Sound"))
@@ -69569,10 +69236,10 @@ return LPH_NO_VIRTUALIZE(function()
 			)
 		end
 
-		local backpack = player:FindFirstChild("Backpack")
-		if not backpack then
+		local ssvPassives = character:GetAttribute("ssv_Passives")
+		if not ssvPassives then
 			return Logger.notify(
-				"Failed to steal build from '%s' because their backpack does not exist.",
+				"Failed to steal build from '%s' because they don't have ssv_Passives attribute.",
 				fetchName(player)
 			)
 		end
@@ -69585,14 +69252,21 @@ return LPH_NO_VIRTUALIZE(function()
 			)
 		end
 
+		local backpack = player:FindFirstChild("Backpack")
+		if not backpack then
+			return Logger.notify(
+				"Failed to steal build from '%s' because their backpack does not exist.",
+				fetchName(player)
+			)
+		end
+
 		-- Prepare data.
 		local data = {
 			version = 3,
 			stats = {
 				buildName = string.format("(%i) (%s) Stolen Build", os.time(), player.Name),
-				buildDescription =
-				"(.gg/Airadw) Build stolen using Aira's Build Stealer feature. Pre-shrine must be solved for. Stuff can be missing or bugged. Finally, check notes.",
-				buildAuthor = "Aira On Top ",
+				buildDescription = "(discord.gg/8URBZ4rjGf) Build stolen using Aira Build Stealer feature. Pre-shrine must be solved for. Stuff can be missing or bugged. Finally, check notes.",
+				buildAuthor = "discord.gg/8URBZ4rjGf",
 				power = character:GetAttribute("Level"),
 				pointsUntilNextPower = 67,
 				points = 67,
@@ -69687,57 +69361,50 @@ return LPH_NO_VIRTUALIZE(function()
 		local notes = {}
 
 		-- Fix data.
-		for _, instance in next, backpack:GetChildren() do
-			local filtered = string.gsub(instance.Name, "Talent:", "")
+		local filtered = ssvPassives:split(";") or {}
 
-			if filtered:match("Murmur") then
-				meta.Murmur = filtered:gsub("Murmur: ", "")
+		for _, child in next, backpack:GetChildren() do
+			if child.Name:match("Resonance:") then
+				meta.Bell = child.Name:gsub("Resonance:", "")
 			end
 
-			if filtered:match("Oath") then
-				meta.Oath = filtered:gsub("Oath: ", "")
+            if child.Name:match("Mantra") and child:GetAttribute("DisplayName") then
+                notes[#notes + 1] = (child.Name:match("RecalledMantra") and "[RECALLED MANTRA]" or "[USED MANTRA]")
+                    .. " "
+                    .. (child:GetAttribute("RichStats") or "NO RICH STATS?")
+                    .. "\n"
+
+                if child.Name:match("RecalledMantra") then
+                    continue
+                end
+
+                data.mantras[#data.mantras + 1] = child:GetAttribute("DisplayName")
+                data.content.mantraModifications[child:GetAttribute("DisplayName")] = {}
+            end
+
+			if child.Name == "Weapon" then
+				notes[#notes + 1] = "[USED WEAPON] " .. child:GetAttribute("RichStats")
+			end
+		end
+
+		for _, passive in next, filtered do
+			if passive:match("Murmur:") then
+				meta.Murmur = passive:gsub("Murmur: ", "")
 			end
 
-			if filtered:match("Resonance") then
-				meta.Bell = filtered:gsub("Resonance:", "")
+			if passive:match("Oath:") then
+				meta.Oath = passive:gsub("Oath: ", "")
 			end
 
-			if filtered:match("Boon") then
-				stats["boon" .. boonIdx] = filtered:gsub("Boon:", "")
-				boonIdx = boonIdx + 1
-			end
-
-			if filtered:match("Flaw") then
-				stats["flaw" .. flawIdx] = filtered:gsub("Flaw:", "")
-				flawIdx = flawIdx + 1
-			end
-
-			if filtered:match("Mantra") and instance:GetAttribute("DisplayName") then
-				notes[#notes + 1] = (filtered:match("RecalledMantra") and "[RECALLED MANTRA]" or "[USED MANTRA]")
-					.. " "
-					.. (instance:GetAttribute("RichStats") or "NO RICH STATS?")
-					.. "\n"
-
-				if filtered:match("RecalledMantra") then
-					continue
-				end
-
-				data.mantras[#data.mantras + 1] = instance:GetAttribute("DisplayName")
-				data.content.mantraModifications[instance:GetAttribute("DisplayName")] = {}
-			end
-
-			if instance.Name == "Weapon" then
-				notes[#notes + 1] = "[USED WEAPON] " .. (instance:GetAttribute("RichStats") or filtered)
-			end
-
-			if instance.Name:match("Talent") then
-				data.talents[#data.talents + 1] = filtered
-			end
+			data.talents[#data.talents + 1] = passive
 		end
 
 		for _, instance in next, character:GetChildren() do
 			if instance.Name == "Ring" then
-				notes[#notes + 1] = string.format("[EQUIPPED RING] %s\n", instance:GetAttribute("DisplayName"))
+				local ringName = instance:GetAttribute("DisplayName")
+					or instance:GetAttribute("EquipmentRef")
+					or instance.Name
+				notes[#notes + 1] = string.format("[EQUIPPED RING] %s\n", ringName)
 					.. (instance:GetAttribute("RichStats") or instance.Name)
 			end
 
@@ -69816,28 +69483,6 @@ return LPH_NO_VIRTUALIZE(function()
 		Logger.notify("Stole build from '%s' and copied the builder link to your clipboard.", fetchName(player))
 	end
 
-	---On hair steal player.
-	---@param player Player
-	local function onHairStealPlayer(player)
-		local ids = InspectAssets.inspectPlayerByName(player.Name)
-		if not ids or #ids == 0 then
-			return Logger.notify("Failed to inspect hair for '%s' or no hair ids found.", fetchName(player))
-		end
-
-		-- Build clipboard text with header and ids
-		table.sort(ids, function(a, b) return tonumber(a) < tonumber(b) end)
-		local lines = {}
-		lines[1] = ("Hair ids for %s:"):format(player.Name)
-		for _, id in ipairs(ids) do
-			table.insert(lines, id)
-		end
-		local text = table.concat(lines, "\n")
-		pcall(function() setclipboard(text) end)
-		pcall(function() if syn and syn.set_clipboard then syn.set_clipboard(text) end end)
-
-		Logger.notify("Inspected hair for '%s' and copied %d id(s) to clipboard.", fetchName(player), #ids)
-	end
-
 	---Update build stealing.
 	local function updateBuildStealing()
 		local leaderboardMap, refreshLeaderboard = LeaderboardClient.gld(), LeaderboardClient.glrf()
@@ -69863,35 +69508,6 @@ return LPH_NO_VIRTUALIZE(function()
 				end
 
 				onBuildStealPlayer(player)
-			end)
-		end
-	end
-
-	---Update hair stealing.
-	local function updateHairStealing()
-		local leaderboardMap, refreshLeaderboard = LeaderboardClient.gld(), LeaderboardClient.glrf()
-		if not leaderboardMap or not refreshLeaderboard then
-			return cameraSubject:restore()
-		end
-
-		-- Refresh leaderboard state.
-		refreshLeaderboard()
-
-		-- Update leaderboard based on state.
-		for player, frame in next, leaderboardMap do
-			local inputBegan = Signal.new(frame.InputBegan)
-			local label = string.format("Monitoring_InputBegan_Hair_%s", player.Name)
-
-			if hairStealMaid[frame] then
-				continue
-			end
-
-			hairStealMaid[frame] = inputBegan:connect(label, function(input)
-				if input.KeyCode ~= Enum.KeyCode.I then
-					return
-				end
-
-				onHairStealPlayer(player)
 			end)
 		end
 	end
@@ -70055,12 +69671,6 @@ return LPH_NO_VIRTUALIZE(function()
 			buildStealMaid:clean()
 		end
 
-		if Configuration.expectToggleValue("HairStealer") then
-			updateHairStealing()
-		else
-			hairStealMaid:clean()
-		end
-
 		if Configuration.expectToggleValue("PlayerSpectating") then
 			updateSpectating()
 		else
@@ -70086,7 +69696,6 @@ return LPH_NO_VIRTUALIZE(function()
 		-- Clean.
 		monitoringMaid:clean()
 		buildStealMaid:clean()
-		hairStealMaid:clean()
 		spectateMaid:clean()
 		plwMaid:clean()
 		showHiddenMap:restore()
@@ -70106,211 +69715,6 @@ return LPH_NO_VIRTUALIZE(function()
 	-- Return Monitoring module.
 	return Monitoring
 end)()
-
-end)
-__bundle_register("Features/Exploit/InspectAssets", function(require, _LOADED, __bundle_register, __bundle_modules)
--- InspectAssets module
--- Safely inspects only the local player's character for strings matching "Asset:(numbers)".
-
-local Players = game:GetService("Players")
-
-local InspectAssets = {}
-
-local function findAssetIdsInString(s)
-    local ids = {}
-    if not s or type(s) ~= "string" then
-        return ids
-    end
-
-    for id in string.gmatch(s, "Asset:(%d+)") do
-        table.insert(ids, id)
-    end
-
-    for id in string.gmatch(s, "rbxassetid://(%d+)") do
-        table.insert(ids, id)
-    end
-
-    return ids
-end
-
-function InspectAssets.inspectLocalPlayer()
-    local lp = Players.LocalPlayer
-    if not lp then
-        return {}
-    end
-
-    local character = lp.Character
-    if not character and lp.CharacterAdded then
-        character = lp.CharacterAdded:Wait()
-    end
-    if not character then
-        return {}
-    end
-
-    local found = {}
-
-    local function checkStringForIds(str)
-        for _, id in ipairs(findAssetIdsInString(str)) do
-            found[id] = true
-        end
-    end
-
-    local function scanInstanceForMeshProps(inst)
-        local props = { "MeshId", "TextureID", "Texture", "Image", "Value" }
-        for _, prop in ipairs(props) do
-            local ok, val = pcall(function() return inst[prop] end)
-            if ok and type(val) == "string" then
-                checkStringForIds(val)
-            end
-        end
-
-        for _, child in ipairs(inst:GetChildren()) do
-            if child.ClassName == "SpecialMesh" or child.ClassName == "Mesh" then
-                local ok, mid = pcall(function() return child.MeshId end)
-                if ok and type(mid) == "string" then
-                    checkStringForIds(mid)
-                end
-            end
-        end
-
-        local ok, s = pcall(function() return tostring(inst) end)
-        if ok and type(s) == "string" then
-            checkStringForIds(s)
-        end
-    end
-
-    -- Scan only accessories or instances that look like hair (name contains "hair", "wig", etc.)
-    for _, desc in ipairs(character:GetDescendants()) do
-        local name = (desc.Name and tostring(desc.Name) or ""):lower()
-        local looksLikeHair = name:match("hair") or name:match("wig") or name:match("bang")
-
-        local isAccessory = false
-        if type(desc.IsA) == "function" then
-            local ok, res = pcall(function() return desc:IsA("Accessory") end)
-            if ok and res then
-                isAccessory = true
-            end
-        end
-
-        if isAccessory or looksLikeHair then
-            scanInstanceForMeshProps(desc)
-        end
-    end
-
-    -- Also check head meshes that may represent hair
-    local head = character:FindFirstChild("Head")
-    if head then
-        for _, child in ipairs(head:GetChildren()) do
-            if child.ClassName == "SpecialMesh" or child.ClassName == "Mesh" or (child.Name and child.Name:lower():match("hair")) then
-                scanInstanceForMeshProps(child)
-            end
-        end
-    end
-
-    local list = {}
-    for id, _ in pairs(found) do
-        table.insert(list, id)
-    end
-    table.sort(list)
-
-    return list
-end
-
-function InspectAssets.inspectPlayerByName(playerName)
-    if not playerName or type(playerName) ~= "string" or playerName == "" then
-        return {}
-    end
-
-    -- Try to find the player
-    local targetPlayer = nil
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name:lower() == playerName:lower() then
-            targetPlayer = player
-            break
-        end
-    end
-
-    if not targetPlayer then
-        warn("Player '" .. playerName .. "' not found")
-        return {}
-    end
-
-    local character = targetPlayer.Character
-    if not character then
-        warn("Player '" .. playerName .. "' has no character loaded")
-        return {}
-    end
-
-    local found = {}
-
-    local function checkStringForIds(str)
-        for _, id in ipairs(findAssetIdsInString(str)) do
-            found[id] = true
-        end
-    end
-
-    local function scanInstanceForMeshProps(inst)
-        local props = { "MeshId", "TextureID", "Texture", "Image", "Value" }
-        for _, prop in ipairs(props) do
-            local ok, val = pcall(function() return inst[prop] end)
-            if ok and type(val) == "string" then
-                checkStringForIds(val)
-            end
-        end
-
-        for _, child in ipairs(inst:GetChildren()) do
-            if child.ClassName == "SpecialMesh" or child.ClassName == "Mesh" then
-                local ok, mid = pcall(function() return child.MeshId end)
-                if ok and type(mid) == "string" then
-                    checkStringForIds(mid)
-                end
-            end
-        end
-
-        local ok, s = pcall(function() return tostring(inst) end)
-        if ok and type(s) == "string" then
-            checkStringForIds(s)
-        end
-    end
-
-    -- Scan accessories and hair-like items
-    for _, desc in ipairs(character:GetDescendants()) do
-        local name = (desc.Name and tostring(desc.Name) or ""):lower()
-        local looksLikeHair = name:match("hair") or name:match("wig") or name:match("bang")
-
-        local isAccessory = false
-        if type(desc.IsA) == "function" then
-            local ok, res = pcall(function() return desc:IsA("Accessory") end)
-            if ok and res then
-                isAccessory = true
-            end
-        end
-
-        if isAccessory or looksLikeHair then
-            scanInstanceForMeshProps(desc)
-        end
-    end
-
-    -- Check head meshes
-    local head = character:FindFirstChild("Head")
-    if head then
-        for _, child in ipairs(head:GetChildren()) do
-            if child.ClassName == "SpecialMesh" or child.ClassName == "Mesh" or (child.Name and child.Name:lower():match("hair")) then
-                scanInstanceForMeshProps(child)
-            end
-        end
-    end
-
-    local list = {}
-    for id, _ in pairs(found) do
-        table.insert(list, id)
-    end
-    table.sort(list)
-
-    return list
-end
-
-return InspectAssets
 
 end)
 __bundle_register("Game/LeaderboardClient", function(require, _LOADED, __bundle_register, __bundle_modules)
@@ -75457,22 +74861,10 @@ local renderStepped = Signal.new(runService.RenderStepped)
 local menuMaid = Maid.new()
 
 -- Constants.
-local VERSION = "1.0.8"
-local WATERMARK_TITLE = "Lycoris"
-Menu.VERSION = VERSION
-
--- Get game name dynamically.
-local gameName = "Unknown"
-pcall(function()
-	local marketplaceService = game:GetService("MarketplaceService")
-	local productInfo = marketplaceService:GetProductInfo(game.PlaceId)
-	gameName = productInfo.Name or "Unknown"
-end)
-
-local MENU_TITLE = "Aira v1.5 | dev by @95k1 | " .. gameName
+local MENU_TITLE = " Aira v1.7 | dev by @95k1 "
 
 if LRM_UserNote then
-	MENU_TITLE = string.format("(v%s) Lycoris | %s", VERSION, gameName)
+	MENU_TITLE = string.format("(v%s) Aira | %s", VERSION, gameName)
 end
 
 ---Initialize menu.
@@ -75505,6 +74897,7 @@ function Menu.init()
 
 	-- Initialize all tabs. Don't initialize them if we have the 'exploit_tester' role.
 	CombatTab.init(window)
+
 	GameTab.init(window)
 	VisualsTab.init(window)
 	AutomationTab.init(window)
@@ -75658,7 +75051,7 @@ function LycorisTab.initCheatSettingsSection(groupbox)
 		else
 			writefile(
 				"smarker.txt",
-				"Hello, if you're reading this, that means you have Lycoris-Rewrite (Deepwoken) silent mode turned on. Deleting this file will turn it off."
+				"Hello, if you're reading this, that means you have Aira (Deepwoken) silent mode turned on. Deleting this file will turn it off."
 			)
 		end
 	end)
@@ -75681,7 +75074,7 @@ function LycorisTab.initCheatSettingsSection(groupbox)
 		else
 			writefile(
 				"dpscanning.txt",
-				"Hello, if you're reading this, that means you have Lycoris-Rewrite (Deepwoken) player scanning turned off. Deleting this file will turn it on."
+				"Hello, if you're reading this, that means you have Aira (Deepwoken) player scanning turned off. Deleting this file will turn it on."
 			)
 		end
 	end)
@@ -75704,7 +75097,7 @@ function LycorisTab.initCheatSettingsSection(groupbox)
 		else
 			writefile(
 				"norpc.txt",
-				"Hello, if you're reading this, that means you have Lycoris-Rewrite (Deepwoken) Bloxstrap RPC turned off. Deleting this file will turn it on."
+				"Hello, if you're reading this, that means you have Aira (Deepwoken) Bloxstrap RPC turned off. Deleting this file will turn it on."
 			)
 		end
 	end)
@@ -76192,7 +75585,7 @@ return LPH_NO_VIRTUALIZE(function()
 			["Default"] = {
 				1,
 				httpService:JSONDecode(
-					'{"FontColor":"ffffff","MainColor":"1c1c1c","AccentColor":"0055ff","BackgroundColor":"141414","OutlineColor":"323232"}'
+					'{"FontColor":"ffffff","MainColor":"1c1c1c","AccentColor":"009cff","BackgroundColor":"141414","OutlineColor":"323232"}'
 				),
 			},
 			["BBot"] = {
@@ -76495,8 +75888,6 @@ local ExploitTab = {}
 
 ---@module Features.Game.Teleport
 local Teleport = require("Features/Game/Teleport")
----@module Features.Exploit.InspectAssets
--- require InspectAssets lazily inside the button to avoid bundler circular resolution
 
 ---Initialize Mob Exploits section.
 ---@param groupbox table
@@ -76624,65 +76015,6 @@ function ExploitTab.init(window)
 	-- Initialize sections.
 	ExploitTab.initMobExploitsSection(tab:AddDynamicGroupbox("Mob Exploits"))
 	ExploitTab.initLocalCharacterExploitsSection(tab:AddDynamicGroupbox("Local Character Exploits"))
-
-	-- Add Inspect Assets UI directly (local-only, copies to clipboard, no notifications)
-	local inspectGroup = tab:AddRightGroupbox("Utility")
-
-	local inspectInput = inspectGroup:AddInput("InspectPlayerName", {
-		Text = "Hair id stealer",
-		Placeholder = "Put their username in the box.",
-	})
-
-	inspectGroup:AddButton({
-		Text = "Steal",
-		Func = function()
-			local entered = tostring(inspectInput.Value or "")
-			entered = entered:gsub("^%s*(.-)%s*$", "%1")
-
-			local Players = game:GetService("Players")
-			local lp = Players.LocalPlayer
-			if not lp then
-				return
-			end
-
-			local InspectAssets = require("Features/Exploit/InspectAssets")
-			local ids = {}
-
-			-- If no name entered or local player name, inspect self
-			if entered == "" or entered == lp.Name or entered == lp.DisplayName then
-				ids = InspectAssets.inspectLocalPlayer()
-			else
-				-- Otherwise inspect the named player
-				ids = InspectAssets.inspectPlayerByName(entered)
-			end
-
-			if not ids or #ids == 0 then
-				return
-			end
-
-			-- Sort numerically ascending
-			table.sort(ids, function(a, b)
-				return tonumber(a) < tonumber(b)
-			end)
-
-			-- Determine display name for header
-			local targetName = entered
-			if targetName == "" or targetName == lp.Name or targetName == lp.DisplayName then
-				targetName = lp.Name
-			end
-
-			-- Build clipboard text with header, ids (one per line), and total
-			local lines = {}
-			lines[1] = ("Hair ids for %s:"):format(targetName)
-			for _, id in ipairs(ids) do
-				table.insert(lines, id)
-			end
-			table.insert(lines, ("Total: %d"):format(#ids))
-			local text = table.concat(lines, "\n")
-			pcall(function() setclipboard(text) end)
-			pcall(function() if syn and syn.set_clipboard then syn.set_clipboard(text) end end)
-		end,
-	})
 
 	if currentWorld == "Depths" or currentWorld == "Mission" or currentWorld == "Dungeon" then
 		return
@@ -76816,7 +76148,7 @@ function VisualsTab.initWorldVisualsSection(groupbox)
 		Default = 90,
 		Min = 0,
 		Max = 120,
-		Suffix = "Â°",
+		Suffix = "°",
 		Rounding = 0,
 	})
 
@@ -77760,8 +77092,7 @@ function AutomationTab.initAttributeSection(groupbox)
 		:AddToggle("AutoCharisma", {
 			Text = "Auto Charisma Farm",
 			Default = false,
-			Tooltip =
-			"Using the 'How To Make Friends' book, the script will automatically train the 'Charisma' attribute.",
+			Tooltip = "Using the 'How To Make Friends' book, the script will automatically train the 'Charisma' attribute.",
 		})
 		:AddKeyPicker("AutoCharismaKeybind", {
 			Default = "N/A",
@@ -77845,7 +77176,7 @@ function AutomationTab.initAutoLootSection(groupbox)
 		Min = 0,
 		Max = 3,
 		Rounding = 0,
-		Suffix = "â˜…",
+		Suffix = "★",
 		Default = 0,
 	})
 
@@ -77855,7 +77186,7 @@ function AutomationTab.initAutoLootSection(groupbox)
 		Min = 0,
 		Max = 3,
 		Rounding = 0,
-		Suffix = "â˜…",
+		Suffix = "★",
 		Default = 0,
 	})
 
@@ -77937,6 +77268,73 @@ function AutomationTab.initEffectAutomation(groupbox)
 	})
 end
 
+---Initialize Debugging section.
+---@param groupbox table
+function AutomationTab.initDebuggingSection(groupbox)
+	groupbox:AddButton("Start Echo Farm", EchoFarm.invoke)
+	groupbox:AddButton("Stop Echo Farm", EchoFarm.stop)
+
+	groupbox:AddButton("Start Deflect", function()
+		QueuedBlocking.invoke(QueuedBlocking.BLOCK_TYPE_DEFLECT, "StartDeflect", nil)
+	end)
+
+	groupbox:AddButton("Start Deflect 0.1s", function()
+		QueuedBlocking.invoke(QueuedBlocking.BLOCK_TYPE_DEFLECT, "StartDeflect", 0.1)
+	end)
+
+	groupbox:AddButton("Start Block 0.3s", function()
+		QueuedBlocking.invoke(QueuedBlocking.BLOCK_TYPE_NORMAL, "StartBlock", 0.3)
+	end)
+
+	groupbox:AddButton("Start Block", function()
+		QueuedBlocking.invoke(QueuedBlocking.BLOCK_TYPE_NORMAL, "StartBlock", nil)
+	end)
+
+	groupbox:AddButton("Stop All Block", function()
+		QueuedBlocking.empty()
+	end)
+
+	groupbox:AddButton("Raw Start Block", function()
+		local blockRemote = KeyHandling.getRemote("Block")
+		if not blockRemote then
+			return
+		end
+
+		blockRemote:FireServer()
+	end)
+
+	groupbox:AddButton("Raw Stop Block", function()
+		local unblockRemote = KeyHandling.getRemote("Unblock")
+		if not unblockRemote then
+			return
+		end
+
+		unblockRemote:FireServer()
+	end)
+
+	groupbox:AddButton("Test Tween", function()
+		local positions = {
+			CFrame.new(2414.70, 442.28, -5595.58),
+			CFrame.new(2424.78, 408.30, -5501.38),
+			CFrame.new(2429.86, 408.30, -5495.80),
+			CFrame.new(2507.99, 414.60, -5560.85),
+			CFrame.new(600.33, 983.29, -7643.66),
+			CFrame.new(669.22, 979.31, -7668.61),
+			CFrame.new(2960.38, 404.16, -5604.14),
+		}
+
+		for idx, position in next, positions do
+			Tweening.goal(string.format("TweenToTest_%i", idx), position, true)
+		end
+	end)
+
+	groupbox:AddButton("Cancel Tween", function()
+		for idx = 1, 7 do
+			Tweening.stop(string.format("TweenToTest_%i", idx))
+		end
+	end)
+end
+
 ---Initialize tab.
 ---@param window table
 function AutomationTab.init(window)
@@ -77956,6 +77354,8 @@ function AutomationTab.init(window)
 	if LRM_UserNote then
 		return
 	end
+
+	AutomationTab.initDebuggingSection(tab:AddRightGroupbox("Debugging"))
 end
 
 -- Return AutomationTab module.
@@ -78008,13 +77408,11 @@ function GameTab.initLocalCharacterSection(groupbox)
 
 	local cframeSpeedToggle = groupbox:AddToggle("CFrameSpeed", {
 		Text = "CFrame Speed",
-		Tooltip =
-		"Use CFrame-based movement. Recommend on low speed, this feature will help your fight and make your combo/movement smoother.",
+		Tooltip = "Use CFrame-based movement. Recommend on low speed, this feature will help your fight and make your combo/movement smoother.",
 		Default = false,
 	})
 
-	cframeSpeedToggle:AddKeyPicker("CFrameSpeedKeybind",
-		{ Default = "N/A", SyncToggleState = true, Text = "CFrame Speed" })
+	cframeSpeedToggle:AddKeyPicker("CFrameSpeedKeybind", { Default = "N/A", SyncToggleState = true, Text = "CFrame Speed" })
 
 	local cfsDepBox = groupbox:AddDependencyBox()
 
@@ -78070,25 +77468,6 @@ function GameTab.initLocalCharacterSection(groupbox)
     })
 
     apbreakerToggle:AddKeyPicker("APBreakerKeybind", { Default = "N/A", SyncToggleState = true, Text = "APBreaker" })
-
-    local apbreakerDepBox = groupbox:AddDependencyBox()
-
-    apbreakerDepBox:SetupDependencies({
-        { apbreakerToggle, true } 
-    })
-
-    apbreakerDepBox:AddSlider("APBreakerIntensity", {
-        Text = "AP Breaker Intensity",
-        Default = 500,
-        Min = 200,
-        Max = 925,
-        Suffix = "x",
-        Rounding = 0,
-        Callback = function(value)
-            local APBreaker = require("Game/APBreaker")
-            APBreaker.speed = value
-        end,
-    })
 
 	local noclipToggle = groupbox:AddToggle("NoClip", {
 		Text = "NoClip",
@@ -78444,13 +77823,6 @@ function GameTab.initPlayerMonitoringSection(groupbox)
 		Default = false,
 	})
 
-	groupbox:AddToggle("HairStealer", {
-		Text = "Hair Stealer",
-		Tooltip =
-		"Inspect a player's hair by hovering their name in the player list and pressing 'I'. Copies hair ids to clipboard.",
-		Default = false,
-	})
-
 	groupbox:AddToggle("ShowHiddenPlayers", {
 		Text = "Show Hidden Players",
 		Tooltip = "Show hidden players on the player list.",
@@ -78677,7 +78049,7 @@ function GameTab.initInfoSpoofingSection(groupbox)
 
 	isDepBox:AddInput("SpoofedDateString", {
 		Text = "Spoofed Date String",
-		Default = "Aira Era, 1970 CE",
+		Default = "Aira, 1951 CE",
 		Finished = true,
 		Callback = Spoofing.sds,
 	})
@@ -78713,7 +78085,7 @@ function GameTab.initInfoSpoofingSection(groupbox)
 
 	isDepBox:AddInput("SpoofedGuildName", {
 		Text = "Spoofed Guild Name",
-		Default = "Aira On Top",
+		Default = "discord.gg/8URBZ4rjGf",
 		Finished = true,
 		Callback = refreshHandler,
 	})
@@ -78727,14 +78099,14 @@ function GameTab.initInfoSpoofingSection(groupbox)
 
 	isDepBox:AddInput("SpoofedServerRegion", {
 		Text = "Spoofed Server Region",
-		Default = "Aira On Top",
+		Default = "discord.gg/8URBZ4rjGf",
 		Finished = true,
 		Callback = refreshHandler,
 	})
 
 	isDepBox:AddInput("SpoofedServerAge", {
 		Text = "Spoofed Server Age",
-		Default = "???",
+		Default = "95k1",
 		Finished = true,
 		Callback = refreshHandler,
 	})
@@ -78781,7 +78153,6 @@ __bundle_register("Game/APBreaker", function(require, _LOADED, __bundle_register
 local Players = game:GetService("Players")
 
 local APBreaker = {}
-
 local ANIMS = {
     "rbxassetid://135226142279222",
     "rbxassetid://80513922848003",
@@ -78789,33 +78160,19 @@ local ANIMS = {
     "rbxassetid://10621877046",
     "rbxassetid://9681472252",
     "rbxassetid://132792155877270",
-    "rbxassetid://18109641443",
-    "rbxassetid://11889580367",
-    "rbxassetid://9919986614",
-    "rbxassetid://106452000190522",
-    "rbxassetid://137594192318552",
-    "rbxassetid://101606363724786",
-    "rbxassetid://11183196198",
-    "rbxassetid://13282373122",
 }
 
+
 local PULSES_PER_SECOND = 999
-local SPEED = 500
-local WEIGHT = 0.015
+local SPEED = 50
+local WEIGHT = 0.035
 local FADE_TIME = 0
 local PRIORITY = Enum.AnimationPriority.Idle
+
 
 APBreaker.enabled = false
 APBreaker.currentStop = nil
 APBreaker.charConn = nil
-
-function APBreaker:setSpeed(value)
-    SPEED = value
-end
-
-function APBreaker:setWeight(value)
-    WEIGHT = value
-end
 
 local function newAnim(id)
     local a = Instance.new("Animation")
@@ -78960,7 +78317,7 @@ function CombatTab.initCombatTargetingSection(tab)
 		Min = 0,
 		Max = 180,
 		Default = 180,
-		Suffix = "Â°",
+		Suffix = "°",
 		Rounding = 0,
 	})
 
@@ -79109,6 +78466,12 @@ function CombatTab.initAutoDefenseSection(groupbox)
 		Tooltip = "If enabled, the auto defense will ignore parry, block and dodge action if there's already an existing invincibility frame.",
 	})
 
+	autoDefenseDepBox:AddToggle("UseAutoParryFrames", {
+		Text = "Use Auto Parry Frames",
+		Default = false,
+		Tooltip = "If enabled, the auto defense will ignore parry actions if there is AP frames.",
+	})
+
 	autoDefenseDepBox:AddToggle("ValidateIncomingAnimations", {
 		Text = "Validate Incoming Animations",
 		Default = true,
@@ -79192,7 +78555,7 @@ function CombatTab.initAutoDefenseSection(groupbox)
 	})
 
 	afDepBox:AddSlider("IgnoreAnimationEndRate", {
-		Text = "React to Feint Rate",
+		Text = "Ignore Animation End Rate",
 		Min = 0,
 		Max = 100,
 		Default = 0,
@@ -79394,7 +78757,7 @@ function CombatTab:initProbabilitiesSection(groupbox)
 	})
 
 	self.ignoreAnimationEndRate = groupbox:AddSlider("TP_IgnoreAnimationEndRate", {
-		Text = "React to Feint Rate",
+		Text = "Ignore Animation End Rate",
 		Min = 0,
 		Max = 100,
 		Default = 0,
@@ -79718,6 +79081,11 @@ local oldIndex = nil
 local oldPrint = nil
 local oldWarn = nil
 local oldHasEffect = nil
+local oldProtectedCall = nil
+local oldGetKey = nil
+
+-- Cached hooked function.
+local khGetKey = nil
 
 -- InputClient caching.
 local lastCallingFunction = nil
@@ -80245,7 +79613,7 @@ local onIndex = LPH_NO_VIRTUALIZE(function(...)
 
 	---@note: Patch out InputClient detection for __index hooking to prevent annoying errors.
 	if typeof(args[2]) == "table" then
-		return error("InputClient - Aira On Top")
+		return error("InputClient - Lycoris On Top")
 	end
 
 	if Spoofing.force or not Configuration.expectToggleValue("InfoSpoofing") then
@@ -80365,11 +79733,11 @@ local onNameCall = LPH_NO_VIRTUALIZE(function(...)
 			end
 
 			if args[2] == "Guild" then
-				return foreign and "Aira On Top" or Configuration.expectOptionValue("SpoofedGuild")
+				return foreign and "discord.gg/8URBZ4rjGf" or Configuration.expectOptionValue("SpoofedGuild")
 			end
 
 			if args[2] == "GuildRich" then
-				return foreign and "Aira On Top" or Configuration.expectOptionValue("SpoofedGuildName")
+				return foreign and "discord.gg/8URBZ4rjGf" or Configuration.expectOptionValue("SpoofedGuildName")
 			end
 		end
 	end
@@ -80540,6 +79908,13 @@ end)
 ---On to string.
 ---@return any
 local onToString = LPH_NO_VIRTUALIZE(function(...)
+	local args = { ... }
+
+	if args[1] == "EEKEWAEJIWAJDOIWAJDIOJAWDIOJAWODJOAIW" then
+		Logger.warn("Crash was attempted.")
+		return coroutine.yield()
+	end
+
 	if os.clock() - lastFunctionCacheAttempt <= 0.5 then
 		return oldToString(...)
 	end
@@ -80656,6 +80031,103 @@ function Hooking.init()
 
 	effectReplicatorModule.HasEffect = onHasEffect
 
+	---@note: This new addition is as a reuslt of a new roblox / exploit update which blocks .__index from being triggered for these cases.
+	--- Normally, you can hook 'pcall' or ('__index' with this direct type of hook) but they are unperformant.
+	--- So, we replace KeyHandler calls with their safe variants while the script runs.
+
+	local replicatedStorage = game:GetService("ReplicatedStorage")
+	local modules = replicatedStorage:WaitForChild("Modules")
+	local clientManager = modules:WaitForChild("ClientManager")
+	local keyHandler = clientManager:WaitForChild("KeyHandler")
+	local keyHandlerModule = require(keyHandler)
+
+	local spoofedKeyHandlerCall = LPH_NO_VIRTUALIZE(function(func, ...)
+		local gameMetatable = getrawmetatable(game)
+
+		setreadonly(gameMetatable, false)
+
+		local oldGameMetatableIndex = gameMetatable.__index
+		local oldProtectedCall = nil
+		local oldGetFunctionEnvironment = nil
+
+		gameMetatable.__index = newcclosure(function(...)
+			local args = { ... }
+			local index = args[2]
+
+			if index == "HttpGet\000" then
+				return error("KeyHandler - Lycoris On Top")
+			end
+
+			return oldGameMetatableIndex(...)
+		end)
+
+		local lastErrorLevel = nil
+
+		oldGetFunctionEnvironment = hookfunction(getfenv, function(...)
+			return getrenv()
+		end)
+
+		oldError = hookfunction(error, function(...)
+			local args = { ... }
+
+			lastErrorLevel = args[2]
+
+			return oldError(...)
+		end)
+
+		oldProtectedCall = hookfunction(pcall, function(...)
+			local results = { oldProtectedCall(...) }
+
+			if lastErrorLevel == 4 then
+				return false, "KeyHandler - Lycoris On Top"
+			elseif lastErrorLevel ~= nil then
+				return false, "\000"
+			end
+
+			lastErrorLevel = nil
+
+			return table.unpack(results)
+		end)
+
+		local thread = coroutine.create(func)
+		local results = table.pack(coroutine.resume(thread, ...))
+
+		if not results[1] then
+			return Logger.warn("Spoofed KeyHandler call failed to execute: %s", tostring(results[2]))
+		end
+
+		table.remove(results, 1)
+
+		results["n"] = nil
+
+		gameMetatable.__index = oldGameMetatableIndex
+
+		setreadonly(gameMetatable, true)
+
+		hookfunction(pcall, oldProtectedCall)
+
+		hookfunction(error, oldError)
+
+		hookfunction(getfenv, oldGetFunctionEnvironment)
+
+		return table.unpack(results)
+	end)
+
+	local keyHandlerTable = spoofedKeyHandlerCall(keyHandlerModule)
+
+	khGetKey = keyHandlerTable[1]
+
+	if typeof(keyHandlerTable) ~= "table" or typeof(khGetKey) ~= "function" then
+		return error("An internal error occurred while hooking. KeyHandler table is invalid.")
+	end
+
+	oldGetKey = hookfunction(
+		khGetKey,
+		LPH_NO_VIRTUALIZE(function(...)
+			return spoofedKeyHandlerCall(oldGetKey, ...)
+		end)
+	)
+
 	-- Okay, we're done.
 	Logger.warn("Client-side anticheat has been penetrated.")
 end
@@ -80663,6 +80135,10 @@ end
 ---Hooking detach.
 function Hooking.detach()
 	local localPlayer = playersService.LocalPlayer
+
+	if khGetKey and oldGetKey then
+		hookfunction(khGetKey, oldGetKey)
+	end
 
 	if oldPrint then
 		hookfunction(print, oldPrint)
@@ -80721,6 +80197,6 @@ end
 
 -- Return Hooking module.
 return Hooking
-    
+
 end)
 return __bundle_require("__root")
