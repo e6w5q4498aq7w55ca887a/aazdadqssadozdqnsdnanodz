@@ -66186,7 +66186,7 @@ local HISTORY_STEPS = 5.0
 local PREDICT_FACING_DELTA = 3
 
 -- Hardcoded AP breaker animation IDs (from common breaker scripts).
-local AP_BREAKER_IDS = {
+local AP_BREAKER_IDS = table.freeze({
 	["rbxassetid://9149348937"] = true,
 	["rbxassetid://10880473795"] = true,
 	["rbxassetid://5778357994"] = true,
@@ -66204,13 +66204,18 @@ local AP_BREAKER_IDS = {
     ["rbxassetid://15302935464"] = true,
     ["rbxassetid://5769343416"] = true,
     ["rbxassetid://6055558740"] = true,
-    ["rbxassetid://6385078248"] = true,
     ["rbxassetid://9726608174"] = true,
     ["rbxassetid://9657469282"] = true,
     ["rbxassetid://7617742471"] = true,
-}
+})
 
--- Global table to track suspected breaker sources across all defenders.
+-- When checking:
+local id = animId and tonumber(animId:match("%d+"))
+if id and AP_BREAKER_IDS[id] then
+    -- is a breaker
+end
+
+-- Global table to track suspected breaker sources across all defenders.S
 -- Maps entity to {suspectedUntil = timestamp, lowWeightTimes = {timestamps...}}
 local SUSPECTED_BREAKER_SOURCES = {}
 
@@ -78472,9 +78477,9 @@ function CombatTab.initAutoDefenseSection(groupbox)
 		Tooltip = "If enabled, the auto defense will ignore parry actions if there is AP frames.",
 	})
 
-	autoDefenseDepBox:AddToggle("ValidateIncomingAnimations", {
-		Text = "Validate Incoming Animations",
-		Default = true,
+	autoDefenseDepBox:AddToggle("Anti Ap Breaker", {
+		Text = "Anti Ap Breaker",
+		Default = false,
 		Tooltip = "If enabled, the auto defense will check the incoming attack's animation for any abnormalities to prevent AP breaking.",
 	})
 
