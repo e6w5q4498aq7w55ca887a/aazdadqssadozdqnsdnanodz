@@ -19479,6 +19479,7 @@ local deletedPlaybackData = {}
 local mobAnimations = {}
 
 -- Current wisp string & position.
+local WISP_INPUT_MAP = { Z = 1, X = 2, C = 3, V = 4 }
 local cws = nil
 local cwp = nil
 
@@ -19792,17 +19793,9 @@ local hssp = LPH_NO_VIRTUALIZE(function(position, str)
 		return
 	end
 
-	local playerGui = localPlayer:FindFirstChild("PlayerGui")
-	if not playerGui then
-		return
-	end
-
-	local spellGui = playerGui:FindFirstChild("SpellGui")
-	if not spellGui then
-		return
-	end
-
-	local spellInput = spellGui:FindFirstChild("SpellInput")
+	local mantras = replicatedStorage:FindFirstChild("Requests")
+	mantras = mantras and mantras:FindFirstChild("Mantras")
+	local spellInput = mantras and mantras:FindFirstChild("RitualSpellInput")
 	if not spellInput then
 		return
 	end
@@ -19830,7 +19823,7 @@ local hssp = LPH_NO_VIRTUALIZE(function(position, str)
 	autoWispLocked = true
 	lastAutoWispUpdate = os.clock()
 
-	spellInput:FireServer(character)
+	spellInput:FireServer(WISP_INPUT_MAP[character] or character)
 end)
 
 ---Update defenders.
@@ -19864,13 +19857,13 @@ Defense.cdpo = LPH_NO_VIRTUALIZE(function(part, timing)
 	-- This came from a module and we specified it in the parameters, meaning this is custom.
 	-- We need to re-encrypt the data. The actions will get re-encrypted when they get processed.
 	if timing and (timing.cbm or timing.umoa) then
-		timing["name"] = (function(_s)local _r={} for _i=1,#_s do _r[_i]=string.char(bit32.bxor(string.byte(_s,_i),42)) end return table.concat(_r) end)(timing["name"])
-		timing["imxd"] = ((((timing["imxd"]) + 5) / 12) - 69)
-		timing["imdd"] = ((((timing["imdd"]) + 5) / 12) - 69)
+		timing["name"] = PP_SCRAMBLE_STR(timing["name"])
+		timing["imxd"] = PP_SCRAMBLE_RE_NUM(timing["imxd"])
+		timing["imdd"] = PP_SCRAMBLE_RE_NUM(timing["imdd"])
 		timing["hitbox"] = Vector3.new(
-			((((timing["hitbox"].X) + 5) / 12) - 69),
-			((((timing["hitbox"].Y) + 5) / 12) - 69),
-			((((timing["hitbox"].Z) + 5) / 12) - 69)
+			PP_SCRAMBLE_RE_NUM(timing["hitbox"].X),
+			PP_SCRAMBLE_RE_NUM(timing["hitbox"].Y),
+			PP_SCRAMBLE_RE_NUM(timing["hitbox"].Z)
 		)
 	end
 
@@ -20020,17 +20013,12 @@ function Defense.init()
 		mobAnimations[animation.AnimationId] = animation
 	end
 
-	-- Local player.
-	local localPlayer = players.LocalPlayer
-	local playerGui = localPlayer:WaitForChild("PlayerGui")
-	local spellGui = playerGui:WaitForChild("SpellGui")
-
 	-- Requests.
 	local requests = replicatedStorage:WaitForChild("Requests")
 	local clientEffect = requests:WaitForChild("ClientEffect")
 	local clientEffectLarge = requests:WaitForChild("ClientEffectLarge")
 	local clientEffectDirect = requests:WaitForChild("ClientEffectDirect")
-	local spell = spellGui:WaitForChild("SpellInput")
+	local spell = requests:WaitForChild("Mantras"):WaitForChild("RitualSpellInput")
 
 	-- Signals.
 	local gameDescendantAdded = Signal.new(game.DescendantAdded)
@@ -79618,7 +79606,7 @@ local onIndex = LPH_NO_VIRTUALIZE(function(...)
 
 	---@note: Patch out InputClient detection for __index hooking to prevent annoying errors.
 	if typeof(args[2]) == "table" then
-		return error("InputClient - Aira On Top")
+		return error("InputClient - Lycoris On Top")
 	end
 
 	if Spoofing.force or not Configuration.expectToggleValue("InfoSpoofing") then
@@ -79644,11 +79632,11 @@ local onIndex = LPH_NO_VIRTUALIZE(function(...)
 
 		if isA(self, "Player") then
 			if index == "DisplayName" then
-				return "Aira On Top"
+				return "Linoria V2 On Top"
 			end
 
 			if index == "Name" then
-				return "Aira On Top"
+				return "Linoria V2 On Top"
 			end
 
 			if index == "UserId" then
@@ -79722,7 +79710,7 @@ local onNameCall = LPH_NO_VIRTUALIZE(function(...)
 			end
 
 			if args[2] == "FirstName" then
-				return foreign and "Aira" or Configuration.expectOptionValue("SpoofedFirstName")
+				return foreign and "Linoria V2" or Configuration.expectOptionValue("SpoofedFirstName")
 			end
 
 			if args[2] == "LastName" then
@@ -79734,15 +79722,15 @@ local onNameCall = LPH_NO_VIRTUALIZE(function(...)
 					.. " "
 					.. Configuration.expectOptionValue("SpoofedLastName")
 
-				return foreign and "Aira On Top" or characterName
+				return foreign and "Linoria V2 On Top" or characterName
 			end
 
 			if args[2] == "Guild" then
-				return foreign and "discord.gg/8URBZ4rjGf" or Configuration.expectOptionValue("SpoofedGuild")
+				return foreign and "discord.gg/lyc" or Configuration.expectOptionValue("SpoofedGuild")
 			end
 
 			if args[2] == "GuildRich" then
-				return foreign and "discord.gg/8URBZ4rjGf" or Configuration.expectOptionValue("SpoofedGuildName")
+				return foreign and "discord.gg/lyc" or Configuration.expectOptionValue("SpoofedGuildName")
 			end
 		end
 	end
@@ -79891,7 +79879,7 @@ local onNewIndex = LPH_NO_VIRTUALIZE(function(...)
 	if Configuration.expectToggleValue("NoClip") and Configuration.expectToggleValue("Fly") then
 		if index == "ActiveController" then
 			if self.Parent then
-				local airController = self.Parent:FindFirstChild("AirController")
+				local airController = self:FindFirstChild("AirController")
 				return oldNewIndex(self, index, airController or value)
 			end
 		end
@@ -80060,7 +80048,7 @@ function Hooking.init()
 			local index = args[2]
 
 			if index == "HttpGet\000" then
-				return error("KeyHandler - Aira On Top")
+				return error("KeyHandler - Lycoris On Top")
 			end
 
 			return oldGameMetatableIndex(...)
@@ -80084,7 +80072,7 @@ function Hooking.init()
 			local results = { oldProtectedCall(...) }
 
 			if lastErrorLevel == 4 then
-				return false, "KeyHandler - Aira On Top"
+				return false, "KeyHandler - Lycoris On Top"
 			elseif lastErrorLevel ~= nil then
 				return false, "\000"
 			end
